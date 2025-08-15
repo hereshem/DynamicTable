@@ -60,7 +60,6 @@ func createTables() error {
 	CREATE TABLE IF NOT EXISTS contents (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		table_slug VARCHAR(255) NOT NULL,
-		keys JSONB NOT NULL,
 		values JSONB NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -70,7 +69,6 @@ func createTables() error {
 	// Create indexes
 	indexes := []string{
 		"CREATE INDEX IF NOT EXISTS idx_contents_table_slug ON contents(table_slug);",
-		"CREATE INDEX IF NOT EXISTS idx_contents_keys ON contents USING GIN(keys);",
 		"CREATE INDEX IF NOT EXISTS idx_contents_values ON contents USING GIN(values);",
 	}
 
