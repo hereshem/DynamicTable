@@ -41,7 +41,6 @@ A full-stack application for creating and managing dynamic tables with custom fi
 #### `contents` Table
 - `id` (UUID): Primary key
 - `table_slug` (VARCHAR): Foreign key to schema table
-- `keys` (JSONB): Field names and identifiers
 - `values` (JSONB): Actual field values
 - `created_at` (TIMESTAMP): Creation timestamp
 - `updated_at` (TIMESTAMP): Last update timestamp

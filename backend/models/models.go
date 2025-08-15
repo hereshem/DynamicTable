@@ -29,7 +29,6 @@ type Field struct {
 type Content struct {
 	ID        string                 `json:"id" db:"id"`
 	TableSlug string                 `json:"tableSlug" db:"table_slug"`
-	Keys      map[string]interface{} `json:"keys" db:"keys"`
 	Values    map[string]interface{} `json:"values" db:"values"`
 	CreatedAt time.Time              `json:"createdAt" db:"created_at"`
 	UpdatedAt time.Time              `json:"updatedAt" db:"updated_at"`
@@ -50,14 +49,31 @@ type UpdateSchemaRequest struct {
 
 // CreateContentRequest represents the request to create a new content record
 type CreateContentRequest struct {
-	Keys   map[string]interface{} `json:"keys" binding:"required"`
 	Values map[string]interface{} `json:"values" binding:"required"`
 }
 
 // UpdateContentRequest represents the request to update a content record
 type UpdateContentRequest struct {
-	Keys   map[string]interface{} `json:"keys" binding:"required"`
 	Values map[string]interface{} `json:"values" binding:"required"`
+}
+
+// ContentQueryParams represents query parameters for content filtering
+type ContentQueryParams struct {
+	Search   string            `form:"search"`
+	Filters  map[string]string `form:"filters"`
+	SortBy   string            `form:"sortBy"`
+	SortDir  string            `form:"sortDir"` // "asc" or "desc"
+	Page     int               `form:"page"`
+	PageSize int               `form:"pageSize"`
+}
+
+// ContentResponse represents the paginated content response
+type ContentResponse struct {
+	Contents   []*Content `json:"contents"`
+	Total      int        `json:"total"`
+	Page       int        `json:"page"`
+	PageSize   int        `json:"pageSize"`
+	TotalPages int        `json:"totalPages"`
 }
 
 // SchemaScan is used for scanning database results
@@ -74,7 +90,6 @@ type SchemaScan struct {
 type ContentScan struct {
 	ID        string          `db:"id"`
 	TableSlug string          `db:"table_slug"`
-	Keys      json.RawMessage `db:"keys"`
 	Values    json.RawMessage `db:"values"`
 	CreatedAt time.Time       `db:"created_at"`
 	UpdatedAt time.Time       `db:"updated_at"`

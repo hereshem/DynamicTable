@@ -5,6 +5,8 @@ import (
 	"dynamic-table-backend/repository"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -47,7 +49,7 @@ func (h *ContentHandler) CreateContent(c *gin.Context) {
 	}
 
 	// Validate that keys match schema fields
-	if err := h.validateContentAgainstSchema(req.Keys, req.Values, schema.Fields); err != nil {
+	if err := h.validateContentAgainstSchema(req.Values, schema.Fields); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -83,7 +85,7 @@ func (h *ContentHandler) GetContent(c *gin.Context) {
 	c.JSON(http.StatusOK, content)
 }
 
-// GetContents retrieves all contents for a specific table
+// GetContents retrieves all contents for a specific table with search, filter, and sorting
 func (h *ContentHandler) GetContents(c *gin.Context) {
 	tableSlug := c.Param("tableSlug")
 	if tableSlug == "" {
@@ -91,13 +93,64 @@ func (h *ContentHandler) GetContents(c *gin.Context) {
 		return
 	}
 
-	contents, err := h.contentRepo.GetContentsByTableSlug(tableSlug)
+	// Parse query parameters
+	params := &models.ContentQueryParams{}
+
+	// Search parameter
+	if search := c.Query("search"); search != "" {
+		params.Search = search
+	}
+
+	// Filters parameter (comma-separated key=value pairs)
+	if filtersStr := c.Query("filters"); filtersStr != "" {
+		params.Filters = make(map[string]string)
+		filterPairs := strings.Split(filtersStr, ",")
+		for _, pair := range filterPairs {
+			if strings.Contains(pair, "=") {
+				parts := strings.SplitN(pair, "=", 2)
+				if len(parts) == 2 {
+					params.Filters[parts[0]] = parts[1]
+				}
+			}
+		}
+	}
+
+	// Sorting parameters
+	if sortBy := c.Query("sortBy"); sortBy != "" {
+		params.SortBy = sortBy
+	}
+	if sortDir := c.Query("sortDir"); sortDir != "" {
+		params.SortDir = sortDir
+	}
+
+	// Pagination parameters
+	if pageStr := c.Query("page"); pageStr != "" {
+		if page, err := strconv.Atoi(pageStr); err == nil && page > 0 {
+			params.Page = page
+		}
+	}
+	if pageSizeStr := c.Query("pageSize"); pageSizeStr != "" {
+		if pageSize, err := strconv.Atoi(pageSizeStr); err == nil && pageSize > 0 {
+			params.PageSize = pageSize
+		}
+	}
+
+	// Set defaults
+	if params.Page == 0 {
+		params.Page = 1
+	}
+	if params.PageSize == 0 {
+		params.PageSize = 10
+	}
+
+	contents, err := h.contentRepo.GetContentsByTableSlug(tableSlug, params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if len(contents) == 0 {
-		contents = []*models.Content{}
+
+	if contents.Contents == nil {
+		contents.Contents = []*models.Content{}
 	}
 
 	c.JSON(http.StatusOK, contents)
@@ -136,7 +189,7 @@ func (h *ContentHandler) UpdateContent(c *gin.Context) {
 	}
 
 	// Validate that keys match schema fields
-	if err := h.validateContentAgainstSchema(req.Keys, req.Values, schema.Fields); err != nil {
+	if err := h.validateContentAgainstSchema(req.Values, schema.Fields); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -167,19 +220,19 @@ func (h *ContentHandler) DeleteContent(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "content deleted successfully"})
 }
 
-// validateContentAgainstSchema validates that content keys and values match the schema
-func (h *ContentHandler) validateContentAgainstSchema(keys, values map[string]interface{}, fields []models.Field) error {
+// validateContentAgainstSchema validates that content values match the schema
+func (h *ContentHandler) validateContentAgainstSchema(values map[string]interface{}, fields []models.Field) error {
 	// Check if all required fields are present
 	for _, field := range fields {
 		if field.Required {
-			if _, exists := keys[field.Name]; !exists {
+			if _, exists := values[field.Name]; !exists {
 				return fmt.Errorf("required field '%s' is missing", field.Name)
 			}
 		}
 	}
 
-	// Check if all keys exist in schema
-	for key := range keys {
+	// Check if all values exist in schema
+	for key := range values {
 		found := false
 		for _, field := range fields {
 			if field.Name == key {

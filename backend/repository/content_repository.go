@@ -6,6 +6,7 @@ import (
 	"dynamic-table-backend/models"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type ContentRepository struct{}
@@ -16,26 +17,20 @@ func NewContentRepository() *ContentRepository {
 
 // CreateContent creates a new content record
 func (r *ContentRepository) CreateContent(tableSlug string, content *models.CreateContentRequest) (*models.Content, error) {
-	keysJSON, err := json.Marshal(content.Keys)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal keys: %v", err)
-	}
-
 	valuesJSON, err := json.Marshal(content.Values)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal values: %v", err)
 	}
 
 	query := `
-		INSERT INTO contents (table_slug, keys, values)
-		VALUES ($1, $2, $3)
-		RETURNING id, table_slug, keys, values, created_at, updated_at`
+		INSERT INTO contents (table_slug, values)
+		VALUES ($1, $2)
+		RETURNING id, table_slug, values, created_at, updated_at`
 
 	var contentScan models.ContentScan
-	err = database.DB.QueryRow(query, tableSlug, keysJSON, valuesJSON).Scan(
+	err = database.DB.QueryRow(query, tableSlug, valuesJSON).Scan(
 		&contentScan.ID,
 		&contentScan.TableSlug,
-		&contentScan.Keys,
 		&contentScan.Values,
 		&contentScan.CreatedAt,
 		&contentScan.UpdatedAt,
@@ -50,7 +45,7 @@ func (r *ContentRepository) CreateContent(tableSlug string, content *models.Crea
 // GetContentByID retrieves content by ID
 func (r *ContentRepository) GetContentByID(id string) (*models.Content, error) {
 	query := `
-		SELECT id, table_slug, keys, values, created_at, updated_at
+		SELECT id, table_slug, values, created_at, updated_at
 		FROM contents
 		WHERE id = $1`
 
@@ -58,7 +53,6 @@ func (r *ContentRepository) GetContentByID(id string) (*models.Content, error) {
 	err := database.DB.QueryRow(query, id).Scan(
 		&contentScan.ID,
 		&contentScan.TableSlug,
-		&contentScan.Keys,
 		&contentScan.Values,
 		&contentScan.CreatedAt,
 		&contentScan.UpdatedAt,
@@ -73,15 +67,88 @@ func (r *ContentRepository) GetContentByID(id string) (*models.Content, error) {
 	return r.scanToContent(contentScan)
 }
 
-// GetContentsByTableSlug retrieves all contents for a specific table
-func (r *ContentRepository) GetContentsByTableSlug(tableSlug string) ([]*models.Content, error) {
-	query := `
-		SELECT id, table_slug, keys, values, created_at, updated_at
-		FROM contents
-		WHERE table_slug = $1
-		ORDER BY created_at DESC`
+// GetContentsByTableSlug retrieves all contents for a specific table with search, filter, and sorting
+func (r *ContentRepository) GetContentsByTableSlug(tableSlug string, params *models.ContentQueryParams) (*models.ContentResponse, error) {
+	// Build the base query
+	baseQuery := `FROM contents WHERE table_slug = $1`
+	args := []interface{}{tableSlug}
+	argIndex := 2
 
-	rows, err := database.DB.Query(query, tableSlug)
+	// Add search functionality
+	if params.Search != "" {
+		searchQuery := ` AND (
+			values::text ILIKE $%d
+		)`
+		searchArg := "%" + params.Search + "%"
+		baseQuery += fmt.Sprintf(searchQuery, argIndex, argIndex)
+		args = append(args, searchArg)
+		argIndex++
+	}
+
+	// Add field-specific filters
+	if params.Filters != nil && len(params.Filters) > 0 {
+		for fieldName, filterValue := range params.Filters {
+			if filterValue != "" {
+				filterQuery := ` AND values->$%d ILIKE $%d`
+				baseQuery += fmt.Sprintf(filterQuery, argIndex, argIndex+1)
+				args = append(args, fieldName, "%"+filterValue+"%")
+				argIndex += 2
+			}
+		}
+	}
+
+	// Build the complete query with sorting and pagination
+	orderBy := "created_at DESC"
+	if params.SortBy != "" {
+		// Validate sort direction
+		sortDir := "ASC"
+		if strings.ToUpper(params.SortDir) == "DESC" {
+			sortDir = "DESC"
+		}
+
+		// Handle special cases for sorting
+		switch params.SortBy {
+		case "created_at", "updated_at":
+			orderBy = fmt.Sprintf("%s %s", params.SortBy, sortDir)
+		default:
+			// For dynamic fields, sort by JSON value
+			orderBy = fmt.Sprintf("values->'%s' %s", params.SortBy, sortDir)
+		}
+	}
+
+	// Count total records
+	countQuery := fmt.Sprintf("SELECT COUNT(*) %s", baseQuery)
+	var total int
+	err := database.DB.QueryRow(countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count contents: %v", err)
+	}
+
+	// Calculate pagination
+	if params.Page < 1 {
+		params.Page = 1
+	}
+	if params.PageSize < 1 {
+		params.PageSize = 10
+	}
+	if params.PageSize > 100 {
+		params.PageSize = 100
+	}
+
+	offset := (params.Page - 1) * params.PageSize
+	totalPages := (total + params.PageSize - 1) / params.PageSize
+
+	// Build the final query with pagination
+	selectQuery := fmt.Sprintf(`
+		SELECT id, table_slug, values, created_at, updated_at
+		%s
+		ORDER BY %s
+		LIMIT $%d OFFSET $%d
+	`, baseQuery, orderBy, argIndex, argIndex+1)
+
+	args = append(args, params.PageSize, offset)
+
+	rows, err := database.DB.Query(selectQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query contents: %v", err)
 	}
@@ -93,7 +160,6 @@ func (r *ContentRepository) GetContentsByTableSlug(tableSlug string) ([]*models.
 		err := rows.Scan(
 			&contentScan.ID,
 			&contentScan.TableSlug,
-			&contentScan.Keys,
 			&contentScan.Values,
 			&contentScan.CreatedAt,
 			&contentScan.UpdatedAt,
@@ -109,16 +175,32 @@ func (r *ContentRepository) GetContentsByTableSlug(tableSlug string) ([]*models.
 		contents = append(contents, content)
 	}
 
-	return contents, nil
+	return &models.ContentResponse{
+		Contents:   contents,
+		Total:      total,
+		Page:       params.Page,
+		PageSize:   params.PageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+// GetContents retrieves all contents for a specific table (backward compatibility)
+func (r *ContentRepository) GetContents(tableSlug string) ([]*models.Content, error) {
+	params := &models.ContentQueryParams{
+		Page:     1,
+		PageSize: 1000, // Large number to get all
+	}
+
+	response, err := r.GetContentsByTableSlug(tableSlug, params)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Contents, nil
 }
 
 // UpdateContent updates an existing content record
 func (r *ContentRepository) UpdateContent(id string, updateReq *models.UpdateContentRequest) (*models.Content, error) {
-	keysJSON, err := json.Marshal(updateReq.Keys)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal keys: %v", err)
-	}
-
 	valuesJSON, err := json.Marshal(updateReq.Values)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal values: %v", err)
@@ -126,15 +208,14 @@ func (r *ContentRepository) UpdateContent(id string, updateReq *models.UpdateCon
 
 	query := `
 		UPDATE contents
-		SET keys = $1, values = $2, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3
-		RETURNING id, table_slug, keys, values, created_at, updated_at`
+		SET values = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+		RETURNING id, table_slug, values, created_at, updated_at`
 
 	var contentScan models.ContentScan
-	err = database.DB.QueryRow(query, keysJSON, valuesJSON, id).Scan(
+	err = database.DB.QueryRow(query, valuesJSON, id).Scan(
 		&contentScan.ID,
 		&contentScan.TableSlug,
-		&contentScan.Keys,
 		&contentScan.Values,
 		&contentScan.CreatedAt,
 		&contentScan.UpdatedAt,
@@ -182,11 +263,6 @@ func (r *ContentRepository) DeleteContentsByTableSlug(tableSlug string) error {
 
 // scanToContent converts ContentScan to Content
 func (r *ContentRepository) scanToContent(scan models.ContentScan) (*models.Content, error) {
-	var keys map[string]interface{}
-	if err := json.Unmarshal(scan.Keys, &keys); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal keys: %v", err)
-	}
-
 	var values map[string]interface{}
 	if err := json.Unmarshal(scan.Values, &values); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal values: %v", err)
@@ -195,7 +271,6 @@ func (r *ContentRepository) scanToContent(scan models.ContentScan) (*models.Cont
 	return &models.Content{
 		ID:        scan.ID,
 		TableSlug: scan.TableSlug,
-		Keys:      keys,
 		Values:    values,
 		CreatedAt: scan.CreatedAt,
 		UpdatedAt: scan.UpdatedAt,

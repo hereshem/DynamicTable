@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Content, CreateContentRequest, CreateSchemaRequest, Schema, UpdateContentRequest, UpdateSchemaRequest } from '../types';
+import { Content, ContentQueryParams, ContentResponse, CreateContentRequest, CreateSchemaRequest, Schema, UpdateContentRequest, UpdateSchemaRequest } from '../types';
 
 const API_BASE_URL = 'http://localhost:8085/api';
 
@@ -44,8 +44,40 @@ export const contentAPI = {
         return response.data;
     },
 
-    getAll: async (tableSlug: string): Promise<Content[]> => {
-        const response = await api.get(`/contents/${tableSlug}`);
+    getAll: async (tableSlug: string, params?: ContentQueryParams): Promise<ContentResponse> => {
+        const queryParams = new URLSearchParams();
+
+        if (params?.search) {
+            queryParams.append('search', params.search);
+        }
+
+        if (params?.filters) {
+            const filterPairs = Object.entries(params.filters)
+                .filter(([_, value]) => value !== '')
+                .map(([key, value]) => `${key}=${value}`);
+            if (filterPairs.length > 0) {
+                queryParams.append('filters', filterPairs.join(','));
+            }
+        }
+
+        if (params?.sortBy) {
+            queryParams.append('sortBy', params.sortBy);
+        }
+
+        if (params?.sortDir) {
+            queryParams.append('sortDir', params.sortDir);
+        }
+
+        if (params?.page) {
+            queryParams.append('page', params.page.toString());
+        }
+
+        if (params?.pageSize) {
+            queryParams.append('pageSize', params.pageSize.toString());
+        }
+
+        const url = `/contents/${tableSlug}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        const response = await api.get(url);
         return response.data;
     },
 

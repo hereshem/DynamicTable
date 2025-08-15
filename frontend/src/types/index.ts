@@ -19,7 +19,6 @@ export interface Schema {
 export interface Content {
     id: string;
     tableSlug: string;
-    keys: Record<string, any>;
     values: Record<string, any>;
     createdAt: string;
     updatedAt: string;
@@ -32,7 +31,6 @@ export interface CreateSchemaRequest {
 }
 
 export interface CreateContentRequest {
-    keys: Record<string, any>;
     values: Record<string, any>;
 }
 
@@ -42,8 +40,25 @@ export interface UpdateSchemaRequest {
 }
 
 export interface UpdateContentRequest {
-    keys: Record<string, any>;
     values: Record<string, any>;
+}
+
+// Search, Filter, and Sorting types
+export interface ContentQueryParams {
+    search?: string;
+    filters?: Record<string, string>;
+    sortBy?: string;
+    sortDir?: 'asc' | 'desc';
+    page?: number;
+    pageSize?: number;
+}
+
+export interface ContentResponse {
+    contents: Content[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
 }
 
 export const DATA_TYPES = [

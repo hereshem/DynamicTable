@@ -82,7 +82,6 @@ const ContentForm: React.FC<ContentFormProps> = ({
         }
 
         const submitData = {
-            keys: formData,
             values: formData
         };
 
