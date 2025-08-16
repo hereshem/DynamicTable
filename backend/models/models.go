@@ -23,6 +23,17 @@ type Field struct {
 	DataValidation string   `json:"dataValidation,omitempty"`
 	Required       bool     `json:"required"`
 	Options        []string `json:"options,omitempty"`
+	// New relational field properties
+	RelationConfig *RelationConfig `json:"relationConfig,omitempty"`
+}
+
+// RelationConfig represents configuration for relational fields
+type RelationConfig struct {
+	RelationType  string `json:"relationType"`  // "one-to-one", "one-to-many", "many-to-one", "many-to-many"
+	RelatedTable  string `json:"relatedTable"`  // The table this field relates to
+	RelatedField  string `json:"relatedField"`  // The field in the related table to link with
+	DisplayField  string `json:"displayField"`  // Which field from related table to display
+	AllowMultiple bool   `json:"allowMultiple"` // For one-to-many and many-to-many
 }
 
 // Content represents a table record

@@ -1,10 +1,8 @@
 import axios from 'axios';
 import { Content, ContentQueryParams, ContentResponse, CreateContentRequest, CreateSchemaRequest, Schema, UpdateContentRequest, UpdateSchemaRequest } from '../types';
 
-const API_BASE_URL = 'http://localhost:8085/api';
-
 const api = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:8080') + '/api',
     headers: {
         'Content-Type': 'application/json',
     },

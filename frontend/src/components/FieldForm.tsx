@@ -1,6 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react';
 import React from 'react';
-import { DATA_TYPES, Field } from '../types';
+import { DATA_TYPES, Field, RelationConfig } from '../types';
 import Button from './Button';
 import Input from './Input';
 import Select from './Select';
@@ -19,6 +19,7 @@ const FieldForm: React.FC<FieldFormProps> = ({ fields, onChange }) => {
             dataValidation: '',
             required: false,
             options: [],
+            relationConfig: undefined,
         };
         onChange([...fields, newField]);
     };
@@ -52,6 +53,24 @@ const FieldForm: React.FC<FieldFormProps> = ({ fields, onChange }) => {
     const updateOption = (fieldIndex: number, optionIndex: number, value: string) => {
         const newFields = [...fields];
         newFields[fieldIndex].options![optionIndex] = value;
+        onChange(newFields);
+    };
+
+    const updateRelationConfig = (fieldIndex: number, config: Partial<RelationConfig>) => {
+        const newFields = [...fields];
+        if (!newFields[fieldIndex].relationConfig) {
+            newFields[fieldIndex].relationConfig = {
+                relationType: 'many-to-one',
+                relatedTable: '',
+                relatedField: '',
+                displayField: '',
+                allowMultiple: false,
+            };
+        }
+        newFields[fieldIndex].relationConfig = {
+            ...newFields[fieldIndex].relationConfig!,
+            ...config
+        };
         onChange(newFields);
     };
 
@@ -161,6 +180,64 @@ const FieldForm: React.FC<FieldFormProps> = ({ fields, onChange }) => {
                                     </Button>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {/* Relational field configuration */}
+                    {field.dataType === 'relation' && (
+                        <div className="border-t pt-4 space-y-4">
+                            <h5 className="text-sm font-medium text-gray-700">Relation Configuration</h5>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Select
+                                    label="Relation Type"
+                                    value={field.relationConfig?.relationType || 'many-to-one'}
+                                    onChange={(e) => updateRelationConfig(index, { relationType: e.target.value as any })}
+                                    options={[
+                                        { value: 'one-to-one', label: 'One to One' },
+                                        { value: 'one-to-many', label: 'One to Many' },
+                                        { value: 'many-to-one', label: 'Many to One' },
+                                        { value: 'many-to-many', label: 'Many to Many' }
+                                    ]}
+                                />
+
+                                <Input
+                                    label="Related Table"
+                                    value={field.relationConfig?.relatedTable || ''}
+                                    onChange={(e) => updateRelationConfig(index, { relatedTable: e.target.value })}
+                                    placeholder="e.g., users"
+                                    required
+                                />
+
+                                <Input
+                                    label="Related Field"
+                                    value={field.relationConfig?.relatedField || ''}
+                                    onChange={(e) => updateRelationConfig(index, { relatedField: e.target.value })}
+                                    placeholder="e.g., id"
+                                    required
+                                />
+
+                                <Input
+                                    label="Display Field"
+                                    value={field.relationConfig?.displayField || ''}
+                                    onChange={(e) => updateRelationConfig(index, { displayField: e.target.value })}
+                                    placeholder="e.g., name"
+                                    required
+                                />
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    id={`allow-multiple-${index}`}
+                                    checked={field.relationConfig?.allowMultiple || false}
+                                    onChange={(e) => updateRelationConfig(index, { allowMultiple: e.target.checked })}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <label htmlFor={`allow-multiple-${index}`} className="text-sm text-gray-700">
+                                    Allow multiple selections
+                                </label>
+                            </div>
                         </div>
                     )}
                 </div>

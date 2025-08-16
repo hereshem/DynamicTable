@@ -1,3 +1,11 @@
+export interface RelationConfig {
+    relationType: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
+    relatedTable: string;
+    relatedField: string;
+    displayField: string;
+    allowMultiple: boolean;
+}
+
 export interface Field {
     name: string;
     label: string;
@@ -5,6 +13,7 @@ export interface Field {
     dataValidation?: string;
     required: boolean;
     options?: string[];
+    relationConfig?: RelationConfig;
 }
 
 export interface Schema {
@@ -74,7 +83,8 @@ export const DATA_TYPES = [
     'textarea',
     'email',
     'url',
-    'phone'
+    'phone',
+    'relation' // New data type for relational fields
 ] as const;
 
 export type DataType = typeof DATA_TYPES[number];

@@ -156,7 +156,7 @@ const TableView: React.FC = () => {
         return new Date(dateString).toLocaleDateString();
     };
 
-    const renderFieldValue = (fieldName: string, value: any, fieldType: string) => {
+    const renderFieldValue = (fieldName: string, value: any, fieldType: string, content?: Content) => {
         if (value === null || value === undefined) {
             return <span className="text-gray-400">-</span>;
         }
@@ -170,6 +170,17 @@ const TableView: React.FC = () => {
                 return new Date(value).toLocaleString();
             case 'file':
                 return <a href={value} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">View File</a>;
+            case 'relation':
+                // For relational fields, we need to find the field and get the related data
+                const field = schema?.fields.find(f => f.name === fieldName);
+                if (field?.dataType === 'relation' && field.relationConfig && content) {
+                    const relatedData = content.values[`_${fieldName}_related`];
+                    if (relatedData) {
+                        const displayField = field.relationConfig.displayField;
+                        return relatedData[displayField] || value;
+                    }
+                }
+                return String(value);
             default:
                 return String(value);
         }
@@ -342,7 +353,7 @@ const TableView: React.FC = () => {
                                             <tr key={content.id} className="hover:bg-gray-50">
                                                 {schema.fields.map((field, index) => (
                                                     <td key={index} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                        {renderFieldValue(field.name, content.values[field.name], field.dataType)}
+                                                        {renderFieldValue(field.name, content.values[field.name], field.dataType, content)}
                                                     </td>
                                                 ))}
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

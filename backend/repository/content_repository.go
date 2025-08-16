@@ -6,6 +6,7 @@ import (
 	"dynamic-table-backend/models"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -175,6 +176,12 @@ func (r *ContentRepository) GetContentsByTableSlug(tableSlug string, params *mod
 		contents = append(contents, content)
 	}
 
+	// Preload related data for relational fields
+	contents, err = r.preloadRelatedData(contents, tableSlug)
+	if err != nil {
+		return nil, fmt.Errorf("failed to preload related data: %v", err)
+	}
+
 	return &models.ContentResponse{
 		Contents:   contents,
 		Total:      total,
@@ -275,4 +282,105 @@ func (r *ContentRepository) scanToContent(scan models.ContentScan) (*models.Cont
 		CreatedAt: scan.CreatedAt,
 		UpdatedAt: scan.UpdatedAt,
 	}, nil
+}
+
+// preloadRelatedData loads related data for relational fields
+func (r *ContentRepository) preloadRelatedData(contents []*models.Content, tableSlug string) ([]*models.Content, error) {
+	// Get schema to identify relational fields
+	schemaRepo := NewSchemaRepository()
+	schema, err := schemaRepo.GetSchemaBySlug(tableSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find relational fields
+	var relationFields []models.Field
+	for _, field := range schema.Fields {
+		if field.DataType == "relation" && field.RelationConfig != nil {
+			relationFields = append(relationFields, field)
+		}
+	}
+
+	if len(relationFields) == 0 {
+		return contents, nil
+	}
+
+	// Preload related data for each content
+	for _, content := range contents {
+		for _, field := range relationFields {
+			if fieldValue, exists := content.Values[field.Name]; exists {
+				relatedData, err := r.getRelatedData(field.RelationConfig, fieldValue)
+				if err != nil {
+					// Log error but continue
+					log.Printf("Failed to load related data for field %s: %v", field.Name, err)
+					continue
+				}
+
+				// Add related data to content values with a prefix
+				content.Values["_"+field.Name+"_related"] = relatedData
+			}
+		}
+	}
+
+	return contents, nil
+}
+
+// getRelatedData retrieves related data for a specific field
+func (r *ContentRepository) getRelatedData(config *models.RelationConfig, fieldValue interface{}) (interface{}, error) {
+	query := fmt.Sprintf(`
+		SELECT values
+		FROM contents 
+		WHERE table_slug = $1 
+		AND values->$2 = $3
+	`)
+
+	var valuesJSON json.RawMessage
+	err := database.DB.QueryRow(query, config.RelatedTable, config.RelatedField, fieldValue).Scan(&valuesJSON)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var values map[string]interface{}
+	if err := json.Unmarshal(valuesJSON, &values); err != nil {
+		return nil, err
+	}
+
+	return values, nil
+}
+
+// GetRelatedDataForField retrieves all related data for a specific field configuration
+func (r *ContentRepository) GetRelatedDataForField(config *models.RelationConfig) ([]map[string]interface{}, error) {
+	query := `
+		SELECT values
+		FROM contents 
+		WHERE table_slug = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := database.DB.Query(query, config.RelatedTable)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query related data: %v", err)
+	}
+	defer rows.Close()
+
+	var results []map[string]interface{}
+	for rows.Next() {
+		var valuesJSON json.RawMessage
+		err := rows.Scan(&valuesJSON)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan related data: %v", err)
+		}
+
+		var values map[string]interface{}
+		if err := json.Unmarshal(valuesJSON, &values); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal related data: %v", err)
+		}
+
+		results = append(results, values)
+	}
+
+	return results, nil
 }

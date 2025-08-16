@@ -247,3 +247,43 @@ func (h *ContentHandler) validateContentAgainstSchema(values map[string]interfac
 
 	return nil
 }
+
+// GetRelatedData retrieves related data for a specific field
+func (h *ContentHandler) GetRelatedData(c *gin.Context) {
+	tableSlug := c.Param("tableSlug")
+	fieldName := c.Param("fieldName")
+
+	if tableSlug == "" || fieldName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "table slug and field name are required"})
+		return
+	}
+
+	// Get schema to find the field
+	schema, err := h.schemaRepo.GetSchemaBySlug(tableSlug)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var targetField *models.Field
+	for _, field := range schema.Fields {
+		if field.Name == fieldName && field.DataType == "relation" {
+			targetField = &field
+			break
+		}
+	}
+
+	if targetField == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "relation field not found"})
+		return
+	}
+
+	// Get related data
+	relatedData, err := h.contentRepo.GetRelatedDataForField(targetField.RelationConfig)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, relatedData)
+}

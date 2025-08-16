@@ -1,11 +1,11 @@
 # Dynamic Tables System
 
-A full-stack application for creating and managing dynamic tables with custom fields and CRUD operations. Built with Go (backend) and React + Vite (frontend).
+A full-stack application for creating and managing dynamic tables with custom fields and CRUD operations along with features of Search, Filter, Sorting, Pagination and Relational Fields management. Built with Go (backend) and React + Vite (frontend).
 
 ## Features
 
-- **Dynamic Table Creation**: Create tables with custom field definitions
-- **Flexible Field Types**: Support for text, number, date, time, datetime, file, options, checkbox, radio, textarea, email, URL, and phone fields
+- **Dynamic Table Creation**: Build dynamic tables with customizable field definitions, including relational fields.
+- **Flexible Field Types**: Support for text, number, date, time, datetime, file, options, checkbox, radio, textarea, email, URL, phone and relational fields
 - **Field Validation**: Regex pattern validation for custom field rules
 - **Full CRUD Operations**: Create, read, update, and delete table records
 - **Responsive UI**: Modern, mobile-friendly interface built with Tailwind CSS
@@ -41,7 +41,7 @@ A full-stack application for creating and managing dynamic tables with custom fi
 #### `contents` Table
 - `id` (UUID): Primary key
 - `table_slug` (VARCHAR): Foreign key to schema table
-- `values` (JSONB): Actual field values
+- `values` (JSONB): Actual field values in key-value pair
 - `created_at` (TIMESTAMP): Creation timestamp
 - `updated_at` (TIMESTAMP): Last update timestamp
 
@@ -62,6 +62,7 @@ A full-stack application for creating and managing dynamic tables with custom fi
 | `email` | Email address | Email input |
 | `url` | Web URL | URL input |
 | `phone` | Phone number | Tel input |
+| `relation` | Relational table field | Field dropdown |
 
 ## Setup Instructions
 

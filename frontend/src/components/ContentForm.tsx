@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import api from '../services/api';
 import { Content, CreateContentRequest, Field, Schema, UpdateContentRequest } from '../types';
 import Button from './Button';
 import Input from './Input';
@@ -21,6 +22,8 @@ const ContentForm: React.FC<ContentFormProps> = ({
 }) => {
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [relatedData, setRelatedData] = useState<Record<string, any[]>>({});
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (initialData) {
@@ -45,6 +48,32 @@ const ContentForm: React.FC<ContentFormProps> = ({
             setFormData(initialValues);
         }
     }, [schema, initialData]);
+
+    // Fetch related data for relational fields
+    useEffect(() => {
+        const fetchRelatedData = async () => {
+            const relationFields = schema.fields.filter(field => field.dataType === 'relation');
+
+            for (const field of relationFields) {
+                if (field.relationConfig?.relatedTable) {
+                    try {
+                        setLoading(true);
+                        const response = await api.get(`/contents/${field.relationConfig.relatedTable}`);
+                        setRelatedData(prev => ({
+                            ...prev,
+                            [field.name]: response.data.contents || []
+                        }));
+                    } catch (error) {
+                        console.error(`Failed to fetch related data for ${field.name}:`, error);
+                    } finally {
+                        setLoading(false);
+                    }
+                }
+            }
+        };
+
+        fetchRelatedData();
+    }, [schema]);
 
     const validateForm = (): boolean => {
         const newErrors: Record<string, string> = {};
@@ -278,6 +307,26 @@ const ContentForm: React.FC<ContentFormProps> = ({
                         onChange={(e) => handleInputChange(field.name, e.target.value)}
                         error={error}
                         required={field.required}
+                    />
+                );
+
+            case 'relation':
+                const options = relatedData[field.name] || [];
+                const displayField = field.relationConfig?.displayField || 'id';
+                const relatedField = field.relationConfig?.relatedField || 'id';
+
+                return (
+                    <Select
+                        label={field.label}
+                        value={value || ''}
+                        onChange={(e) => handleInputChange(field.name, e.target.value)}
+                        options={options.map(item => ({
+                            value: item.values[relatedField],
+                            label: item.values[displayField] || 'Unknown'
+                        }))}
+                        error={error}
+                        required={field.required}
+                        disabled={loading}
                     />
                 );
 

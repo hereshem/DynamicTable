@@ -45,6 +45,8 @@ func SetupRoutes() *gin.Engine {
 		contents.GET("/:tableSlug/:id", contentHandler.GetContent)
 		contents.PUT("/:tableSlug/:id", contentHandler.UpdateContent)
 		contents.DELETE("/:tableSlug/:id", contentHandler.DeleteContent)
+		// Add route for related data
+		contents.GET("/:tableSlug/related/:fieldName", contentHandler.GetRelatedData)
 	}
 
 	// Health check
