@@ -30,8 +30,8 @@ func SetupRoutes() *gin.Engine {
 	// Schema routes
 	schemas := r.Group("/api/schemas")
 	{
-		schemas.POST("/", schemaHandler.CreateSchema)
-		schemas.GET("/", schemaHandler.GetAllSchemas)
+		schemas.POST("", schemaHandler.CreateSchema)
+		schemas.GET("", schemaHandler.GetAllSchemas)
 		schemas.GET("/:tableSlug", schemaHandler.GetSchema)
 		schemas.PUT("/:tableSlug", schemaHandler.UpdateSchema)
 		schemas.DELETE("/:tableSlug", schemaHandler.DeleteSchema)

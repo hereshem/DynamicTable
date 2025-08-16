@@ -141,7 +141,7 @@ const CreateTable: React.FC = () => {
         setFormData(prev => ({ ...prev, tableName: name }));
 
         // Auto-generate slug if not editing
-        if (!isEditing && !formData.tableSlug) {
+        if (!isEditing) {
             setFormData(prev => ({ ...prev, tableSlug: generateSlug(name) }));
         }
     };
@@ -199,7 +199,7 @@ const CreateTable: React.FC = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Input
-                                label="Table Name"
+                                label="Table Label"
                                 value={formData.tableName}
                                 onChange={handleTableNameChange}
                                 placeholder="e.g., Customer Information"
@@ -208,7 +208,7 @@ const CreateTable: React.FC = () => {
                             />
 
                             <Input
-                                label="Table Slug"
+                                label="Table Name"
                                 value={formData.tableSlug}
                                 onChange={(e) => setFormData(prev => ({ ...prev, tableSlug: e.target.value }))}
                                 placeholder="e.g., customers"

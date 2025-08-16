@@ -90,9 +90,9 @@ func (r *ContentRepository) GetContentsByTableSlug(tableSlug string, params *mod
 	if len(params.Filters) > 0 {
 		for fieldName, filterValue := range params.Filters {
 			if filterValue != "" {
-				filterQuery := ` AND values->$%d ILIKE $%d`
+				filterQuery := ` AND values->>$%d = $%d`
 				baseQuery += fmt.Sprintf(filterQuery, argIndex, argIndex+1)
-				args = append(args, fieldName, "%"+filterValue+"%")
+				args = append(args, fieldName, filterValue)
 				argIndex += 2
 			}
 		}
@@ -113,7 +113,7 @@ func (r *ContentRepository) GetContentsByTableSlug(tableSlug string, params *mod
 			orderBy = fmt.Sprintf("%s %s", params.SortBy, sortDir)
 		default:
 			// For dynamic fields, sort by JSON value
-			orderBy = fmt.Sprintf("values->'%s' %s", params.SortBy, sortDir)
+			orderBy = fmt.Sprintf("values->>'%s' %s", params.SortBy, sortDir)
 		}
 	}
 
@@ -331,7 +331,7 @@ func (r *ContentRepository) getRelatedData(config *models.RelationConfig, fieldV
 		SELECT values
 		FROM contents 
 		WHERE table_slug = $1 
-		AND values->$2 = $3
+		AND values->>$2 = $3
 	`
 	var valuesJSON json.RawMessage
 	err := database.DB.QueryRow(query, config.RelatedTable, config.RelatedField, fieldValue).Scan(&valuesJSON)

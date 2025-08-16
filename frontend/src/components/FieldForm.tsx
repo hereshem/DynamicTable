@@ -105,18 +105,18 @@ const FieldForm: React.FC<FieldFormProps> = ({ fields, onChange }) => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Input
-                            label="Field Name"
-                            value={field.name}
-                            onChange={(e) => updateField(index, { name: e.target.value })}
-                            placeholder="e.g., firstName"
-                            required
-                        />
-
-                        <Input
                             label="Field Label"
                             value={field.label}
                             onChange={(e) => updateField(index, { label: e.target.value })}
                             placeholder="e.g., First Name"
+                            required
+                        />
+
+                        <Input
+                            label="Field Name"
+                            value={field.name}
+                            onChange={(e) => updateField(index, { name: e.target.value })}
+                            placeholder="e.g., firstName"
                             required
                         />
 

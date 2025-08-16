@@ -240,7 +240,7 @@ func (h *ContentHandler) validateContentAgainstSchema(values map[string]interfac
 				break
 			}
 		}
-		if !found {
+		if !found && key[:1] != "_" {
 			return fmt.Errorf("field '%s' is not defined in schema", key)
 		}
 	}
