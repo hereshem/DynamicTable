@@ -81,13 +81,13 @@ func (r *ContentRepository) GetContentsByTableSlug(tableSlug string, params *mod
 			values::text ILIKE $%d
 		)`
 		searchArg := "%" + params.Search + "%"
-		baseQuery += fmt.Sprintf(searchQuery, argIndex, argIndex)
+		baseQuery += fmt.Sprintf(searchQuery, argIndex)
 		args = append(args, searchArg)
 		argIndex++
 	}
 
 	// Add field-specific filters
-	if params.Filters != nil && len(params.Filters) > 0 {
+	if len(params.Filters) > 0 {
 		for fieldName, filterValue := range params.Filters {
 			if filterValue != "" {
 				filterQuery := ` AND values->$%d ILIKE $%d`
@@ -327,13 +327,12 @@ func (r *ContentRepository) preloadRelatedData(contents []*models.Content, table
 
 // getRelatedData retrieves related data for a specific field
 func (r *ContentRepository) getRelatedData(config *models.RelationConfig, fieldValue interface{}) (interface{}, error) {
-	query := fmt.Sprintf(`
+	query := `
 		SELECT values
 		FROM contents 
 		WHERE table_slug = $1 
 		AND values->$2 = $3
-	`)
-
+	`
 	var valuesJSON json.RawMessage
 	err := database.DB.QueryRow(query, config.RelatedTable, config.RelatedField, fieldValue).Scan(&valuesJSON)
 	if err != nil {
@@ -347,7 +346,6 @@ func (r *ContentRepository) getRelatedData(config *models.RelationConfig, fieldV
 	if err := json.Unmarshal(valuesJSON, &values); err != nil {
 		return nil, err
 	}
-
 	return values, nil
 }
 

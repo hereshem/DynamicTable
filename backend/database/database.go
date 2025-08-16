@@ -44,9 +44,9 @@ func InitDB() error {
 }
 
 func createTables() error {
-	// Create schema table
-	schemaTable := `
-	CREATE TABLE IF NOT EXISTS schema (
+	// Create schemas table
+	schemasTable := `
+	CREATE TABLE IF NOT EXISTS schemas (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		table_slug VARCHAR(255) UNIQUE NOT NULL,
 		table_name VARCHAR(255) NOT NULL,
@@ -63,7 +63,7 @@ func createTables() error {
 		values JSONB NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (table_slug) REFERENCES schema(table_slug) ON DELETE CASCADE
+		FOREIGN KEY (table_slug) REFERENCES schemas(table_slug) ON DELETE CASCADE
 	);`
 
 	// Create indexes
@@ -73,8 +73,8 @@ func createTables() error {
 	}
 
 	// Execute table creation
-	if _, err := DB.Exec(schemaTable); err != nil {
-		return fmt.Errorf("failed to create schema table: %v", err)
+	if _, err := DB.Exec(schemasTable); err != nil {
+		return fmt.Errorf("failed to create schemas table: %v", err)
 	}
 
 	if _, err := DB.Exec(contentsTable); err != nil {

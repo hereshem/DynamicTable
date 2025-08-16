@@ -22,7 +22,7 @@ func (r *SchemaRepository) CreateSchema(schema *models.CreateSchemaRequest) (*mo
 	}
 
 	query := `
-		INSERT INTO schema (table_slug, table_name, fields)
+		INSERT INTO schemas (table_slug, table_name, fields)
 		VALUES ($1, $2, $3)
 		RETURNING id, table_slug, table_name, fields, created_at, updated_at`
 
@@ -46,7 +46,7 @@ func (r *SchemaRepository) CreateSchema(schema *models.CreateSchemaRequest) (*mo
 func (r *SchemaRepository) GetSchemaBySlug(tableSlug string) (*models.Schema, error) {
 	query := `
 		SELECT id, table_slug, table_name, fields, created_at, updated_at
-		FROM schema
+		FROM schemas
 		WHERE table_slug = $1`
 
 	var schemaScan models.SchemaScan
@@ -72,7 +72,7 @@ func (r *SchemaRepository) GetSchemaBySlug(tableSlug string) (*models.Schema, er
 func (r *SchemaRepository) GetAllSchemas() ([]*models.Schema, error) {
 	query := `
 		SELECT id, table_slug, table_name, fields, created_at, updated_at
-		FROM schema
+		FROM schemas
 		ORDER BY created_at DESC`
 
 	rows, err := database.DB.Query(query)
@@ -114,7 +114,7 @@ func (r *SchemaRepository) UpdateSchema(tableSlug string, updateReq *models.Upda
 	}
 
 	query := `
-		UPDATE schema
+		UPDATE schemas
 		SET table_name = $1, fields = $2, updated_at = CURRENT_TIMESTAMP
 		WHERE table_slug = $3
 		RETURNING id, table_slug, table_name, fields, created_at, updated_at`
@@ -140,7 +140,7 @@ func (r *SchemaRepository) UpdateSchema(tableSlug string, updateReq *models.Upda
 
 // DeleteSchema deletes a schema and all its contents
 func (r *SchemaRepository) DeleteSchema(tableSlug string) error {
-	query := `DELETE FROM schema WHERE table_slug = $1`
+	query := `DELETE FROM schemas WHERE table_slug = $1`
 	result, err := database.DB.Exec(query, tableSlug)
 	if err != nil {
 		return fmt.Errorf("failed to delete schema: %v", err)

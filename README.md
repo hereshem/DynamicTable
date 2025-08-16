@@ -30,7 +30,7 @@ A full-stack application for creating and managing dynamic tables with custom fi
 
 ### Tables
 
-#### `schema` Table
+#### `schemas` Table
 - `id` (UUID): Primary key
 - `table_slug` (VARCHAR): Unique identifier for the table
 - `table_name` (VARCHAR): Human-readable table name
